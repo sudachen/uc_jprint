@@ -1,12 +1,17 @@
 
 
 #include <~sudachen/uc_jprint/import.h>
+#include <sdk_config.h>
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+#include <nrf_log.h>
+#include <nrf_log_ctrl.h>
+#endif
 
 typedef struct {
   const     char*    name;          // Optional name. Standard names so far are: "Terminal", "SysView", "J-Scope_t4i4"
             char*    buffer;        // Pointer to start of buffer
-            uint32_t sizeOfBuffer;  // Buffer size in bytes. 
-                                    // Note that one byte is lost, as this implementation does not fill up the buffer 
+            uint32_t sizeOfBuffer;  // Buffer size in bytes.
+                                    // Note that one byte is lost, as this implementation does not fill up the buffer
                                     // in order to avoid the problem of being unable to distinguish between full and empty.
   volatile  uint32_t wrOff;         // Position of next item to be written by either target/host.
   volatile  uint32_t rdOff;         // Position of next item to be read by host/target.
@@ -17,23 +22,47 @@ typedef struct {
   char              acID[16];       // Initialized to "SEGGER RTT"
   int32_t           maxnum[2];
   SEGGER_RTT_BUFFER bf;
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+  SEGGER_RTT_BUFFER nrf;
+#endif
 } SEGGER_RTT_CB;
 
 char uc_jprint$Buffer[256];
 
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+char uc_jprint$Nrfbuf[256];
+#endif
+
 SEGGER_RTT_CB uc_jprint$cb =
 {
     .acID = { 249, 239, 237, 237, 239, 248, 138, 248, 254, 254, 0},
-    .maxnum = { 1, 0 },
+    .maxnum = {
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+        2,
+#else
+        1,
+#endif
+        0 },
     .bf =
     {
-        .name  = "Terminal",
+        .name  = "ucPrint",
         .buffer = uc_jprint$Buffer,
         .sizeOfBuffer  = sizeof(uc_jprint$Buffer),
         .rdOff         = 0u,
         .wrOff         = 0u,
         .flags         = 2u,
     },
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+    .nrf =
+    {
+        .name  = "nRF5log",
+        .buffer = uc_jprint$Nrfbuf,
+        .sizeOfBuffer  = sizeof(uc_jprint$Nrfbuf),
+        .rdOff         = 0u,
+        .wrOff         = 0u,
+        .flags         = 2u,
+    }
+#endif
 };
 
 void uc_jprint$initCB()
@@ -44,12 +73,7 @@ void uc_jprint$initCB()
 
 #define INIT_CB() do { if ( uc_jprint$cb.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
 
-void ucSetup_Print()
-{
-    INIT_CB();
-}
-
-void ucPutS(const char *text, bool complete)
+void uc_jprint$print(int channel, const char *text, bool complete)
 {
     static bool inactive = false;
 
@@ -58,7 +82,12 @@ void ucPutS(const char *text, bool complete)
 
     INIT_CB();
 
-    bf = &uc_jprint$cb.bf;
+    bf =
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+        channel == 1 ? &uc_jprint$cb.nrf :
+#endif
+        &uc_jprint$cb.bf;
+
     wrOff = bf->wrOff;
 
     while ( *text )
@@ -87,3 +116,17 @@ void ucPutS(const char *text, bool complete)
         bf->wrOff = wrOff%bf->sizeOfBuffer;
     }
 }
+
+void ucPutS(const char *text, bool complete)
+{
+    uc_jprint$print(0,text,complete);
+}
+
+void ucSetup_Print(void)
+{
+    INIT_CB();
+#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
+    NRF_LOG_INIT(0);
+#endif
+}
+
