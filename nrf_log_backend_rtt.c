@@ -10,6 +10,11 @@
  *
  */
 
+/*
+ * Modified by Alexey Sudachen
+ *  snprintf replaced by microPrint for smaller code size and memory footprint
+ */
+
 #include <sdk_common.h>
 
 #if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
@@ -17,49 +22,113 @@
 #include <nrf_log_backend.h>
 #include <nrf_error.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 
-void uc_jprint$print(int channel, const char *text, bool complete);
+void uccm$printUnsigned10(uint32_t value);
+void uccm$printUnsigned16(uint32_t value, size_t width, bool uppercase);
+void uccm$printFloat(float v, int width2);
+void uccm$printChar(char c);
+void uccm$printStr(const char *s);
+void uccm$flushPrint();
+void uccm$printComplete(bool complete);
+bool uccm$criticalEnter();
+void uccm$criticalExit(bool nested);
 
-#define HEXDUMP_BYTES_PER_LINE               16
-#define HEXDUMP_HEXBYTE_AREA                 3 // Two bytes for hexbyte and space to separate
-#define HEXDUMP_MAX_STR_LEN (NRF_LOG_BACKEND_MAX_STRING_LENGTH -          \
-                            (HEXDUMP_HEXBYTE_AREA*HEXDUMP_BYTES_PER_LINE +\
-                             4 +/* Color ANSI Escape Code */              \
-                             2)) /* Separators */
+static void microPrintf(const char *fstr, size_t argno, uint32_t *args)
+{
+    uint8_t *fmt = (uint8_t*)fstr;
+    bool nested = uccm$criticalEnter();
+    uccm$printComplete(false);
 
-static bool m_initialized   = false;
-static bool m_blocking_mode = false;
+    for ( int j = 0 ; *fmt ; )
+    {
+        if ( *fmt == '%' && fmt[1] && fmt[1] != '%' )
+        {
+            int width1 = 0, width2 = -1;
+            bool zfiller = false;
+            bool uppercase = false;
+            int what = 0;
+
+            ++fmt;
+            if ( *fmt == '0' && isdigit(fmt[1]) ) { zfiller = true; ++fmt; }
+            if ( isdigit(*fmt) ) width1 = strtol((char*)fmt,(char**)&fmt,10);
+            if ( *fmt == '.' )
+            {
+                ++fmt;
+                if ( isdigit(*fmt) ) width2 = strtol((char*)fmt,(char**)&fmt,10);
+            }
+            if ( isupper(*fmt) ) uppercase = true;
+            what = tolower(*fmt++);
+
+            if ( j >= argno )
+            {
+                uccm$printStr("<noarg>");
+                continue;
+            }
+
+            switch ( what )
+            {
+                case 'u':
+                    uccm$printUnsigned10(args[j]);
+                    break;
+
+                case 'i':
+                {
+                    int32_t val = args[j];
+                    if ( val < 0 )
+                    {
+                        val = -val;
+                        uccm$printChar('-');
+                    }
+                    uccm$printUnsigned10(val);
+                    break;
+                }
+
+                case 'x':
+                    uccm$printUnsigned16(args[j],zfiller?width1:0,uppercase);
+                    break;
+
+                case 'f':
+                    uccm$printFloat(*(float*)(args+j),width2);
+                    break;
+
+                case 'p':
+                    uccm$printChar('#');
+                    uccm$printUnsigned16(args[j],8,true);
+                    break;
+
+                case 's':
+                    uccm$printStr((char*)args[j]);
+                    break;
+            }
+
+            ++j;
+        }
+        else if ( *fmt == '%' && fmt[1] == '%' )
+        {
+            uccm$printChar('%');
+            fmt+=2;
+        }
+        else
+        {
+            uccm$printChar(*fmt);
+            ++fmt;
+        }
+    }
+
+    uccm$flushPrint();
+    uccm$criticalExit(nested);
+}
+
 static const char m_default_color[] = "\x1B[0m";
 
 ret_code_t nrf_log_backend_init(bool blocking)
 {
-
-    if (m_initialized && (blocking == m_blocking_mode))
-    {
-        return NRF_SUCCESS;
-    }
-    
-    m_initialized   = true;
-    m_blocking_mode = blocking;
+    (void)blocking;
     return NRF_SUCCESS;
-}
-
-static bool buf_len_update(uint32_t * p_buf_len, int32_t new_len)
-{
-    bool ret;
-    if (new_len < 0)
-    {
-        ret = false;
-    }
-    else
-    {
-        *p_buf_len += (uint32_t)new_len;
-        ret = true;
-    }
-    return ret;
 }
 
 static bool nrf_log_backend_rtt_std_handler(
@@ -69,90 +138,11 @@ static bool nrf_log_backend_rtt_std_handler(
     uint32_t             * p_args,
     uint32_t               nargs)
 {
-    char     str[NRF_LOG_BACKEND_MAX_STRING_LENGTH+1];
-    int32_t  tmp_str_len     = 0;
-    uint32_t buffer_len      = 0;
-    bool     status          = true;
-
-    switch (nargs)
-    {
-        case 0:
-        {
-            tmp_str_len = strlen(p_str);
-            if ((tmp_str_len + buffer_len) < NRF_LOG_BACKEND_MAX_STRING_LENGTH)
-            {
-                memcpy(&str[buffer_len], p_str, tmp_str_len);
-            }
-            break;
-        }
-
-        case 1:
-            tmp_str_len = snprintf(&str[buffer_len], NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len, p_str, p_args[0]);
-
-            break;
-
-        case 2:
-            tmp_str_len = snprintf(&str[buffer_len], NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len, p_str, p_args[0], p_args[1]);
-            break;
-
-        case 3:
-            tmp_str_len = snprintf(&str[buffer_len], NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len, p_str, p_args[0], p_args[1], p_args[2]);
-            break;
-
-        case 4:
-            tmp_str_len =
-                snprintf(&str[buffer_len], NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len, p_str, p_args[0], p_args[1], p_args[2], p_args[3]);
-            break;
-
-        case 5:
-            tmp_str_len =
-                snprintf(&str[buffer_len],
-                        NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len,
-                        p_str,
-                        p_args[0],
-                        p_args[1],
-                        p_args[2],
-                        p_args[3],
-                        p_args[4]);
-            break;
-
-        case 6:
-            tmp_str_len =
-                snprintf(&str[buffer_len],
-                        NRF_LOG_BACKEND_MAX_STRING_LENGTH-buffer_len,
-                        p_str,
-                        p_args[0],
-                        p_args[1],
-                        p_args[2],
-                        p_args[3],
-                        p_args[4],
-                        p_args[5]);
-            break;
-
-        default:
-            break;
-    }
-    status = buf_len_update(&buffer_len, tmp_str_len);
-    uint32_t full_buff_len = NRF_LOG_USES_COLORS ?
-            buffer_len + sizeof(m_default_color)-1 : buffer_len;
-    if (status && (full_buff_len <= NRF_LOG_BACKEND_MAX_STRING_LENGTH))
-    {
-        if (NRF_LOG_USES_COLORS)
-        {
-            memcpy(&str[buffer_len], m_default_color, sizeof(m_default_color)-1);
-            buffer_len = full_buff_len;
-        }
-        str[buffer_len] = 0;
-        uc_jprint$print(1,str,false);
-        return true;
-    }
-    else
-    {
-        // error, snprintf failed.
-        return false;
-    }
+    microPrintf(p_str,nargs,p_args);
+    if (NRF_LOG_USES_COLORS)
+        uccm$printStr(m_default_color);
+    return true;
 }
-
 
 static void byte2hex(const uint8_t c, char * p_out)
 {
@@ -166,6 +156,12 @@ static void byte2hex(const uint8_t c, char * p_out)
     }
 }
 
+#define HEXDUMP_BYTES_PER_LINE               16
+#define HEXDUMP_HEXBYTE_AREA                 3 // Two bytes for hexbyte and space to separate
+#define HEXDUMP_MAX_STR_LEN (HEXDUMP_BYTES_PER_LINE*2 +         \
+                            (HEXDUMP_HEXBYTE_AREA*HEXDUMP_BYTES_PER_LINE +\
+                             4 +/* Color ANSI Escape Code */              \
+                             2)) /* Separators */
 
 static uint32_t nrf_log_backend_rtt_hexdump_handler(
     uint8_t                severity_level,
@@ -177,29 +173,21 @@ static uint32_t nrf_log_backend_rtt_hexdump_handler(
     const uint8_t * const  p_buf1,
     uint32_t               buf1_length)
 {
-    char     str[NRF_LOG_BACKEND_MAX_STRING_LENGTH+1];
-    uint32_t slen;
+    char     str[HEXDUMP_MAX_STR_LEN+1];
     char   * p_hex_part;
     char   * p_char_part;
     uint8_t  c;
     uint32_t byte_in_line;
-    uint32_t buffer_len    = 0;
     uint32_t byte_cnt      = offset;
     uint32_t length        = buf0_length + buf1_length;
 
-    // If it is the first part of hexdump print the header
-    if (offset == 0)
-    {
-        slen = strlen(p_str);
-        // Saturate string if it's too long.
-        slen = (slen > HEXDUMP_MAX_STR_LEN) ? HEXDUMP_MAX_STR_LEN : slen;
-        memcpy(&str[buffer_len], p_str, slen);
-        buffer_len += slen;
-    }
+    bool nested = uccm$criticalEnter();
+
+    uccm$printStr(p_str);
 
     do
     {
-        uint32_t hex_part_offset  = buffer_len;
+        uint32_t hex_part_offset  = 0;
         uint32_t char_part_offset = hex_part_offset +
                                     (HEXDUMP_BYTES_PER_LINE * HEXDUMP_HEXBYTE_AREA + 1);
 
@@ -235,22 +223,19 @@ static uint32_t nrf_log_backend_rtt_hexdump_handler(
         }
         *p_char_part++ = '\r';
         *p_char_part++ = '\n';
+        *p_char_part++ = '\0';
         *p_hex_part++  = ' ';
-        buffer_len    +=
-                         (HEXDUMP_BYTES_PER_LINE * HEXDUMP_HEXBYTE_AREA + 1) + // space for hex dump and separator between hexdump and string
-                         HEXDUMP_BYTES_PER_LINE +                              // space for stringS dump
-                         2;                                                    // space for new line
-        if (NRF_LOG_USES_COLORS)
-        {
-            memcpy(&str[buffer_len], m_default_color, sizeof(m_default_color)-1);
-            buffer_len +=  sizeof(m_default_color)-1;
-        }
 
-        str[buffer_len] = 0;
-        uc_jprint$print(1,str,false);
-        buffer_len = 0;
+        uccm$printStr(str);
+        if (NRF_LOG_USES_COLORS)
+            uccm$printStr(m_default_color);
+
     }
     while (byte_cnt < length);
+
+    uccm$flushPrint();
+    uccm$criticalExit(nested);
+
     return byte_cnt;
 }
 

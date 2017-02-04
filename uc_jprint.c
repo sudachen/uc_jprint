@@ -22,47 +22,23 @@ typedef struct {
   char              acID[16];       // Initialized to "SEGGER RTT"
   int32_t           maxnum[2];
   SEGGER_RTT_BUFFER bf;
-#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
-  SEGGER_RTT_BUFFER nrf;
-#endif
 } SEGGER_RTT_CB;
 
-char uc_jprint$Buffer[256];
-
-#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
-char uc_jprint$Nrfbuf[256];
-#endif
+char uc_jprint$Buffer[UC_PRINT_BUFFER_SIZE];
 
 SEGGER_RTT_CB uc_jprint$cb =
 {
     .acID = { 249, 239, 237, 237, 239, 248, 138, 248, 254, 254, 0},
-    .maxnum = {
-#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
-        2,
-#else
-        1,
-#endif
-        0 },
+    .maxnum = { 1, 0 },
     .bf =
     {
-        .name  = "ucPrint",
-        .buffer = uc_jprint$Buffer,
+        .name          = "ucPrint",
+        .buffer        = uc_jprint$Buffer,
         .sizeOfBuffer  = sizeof(uc_jprint$Buffer),
         .rdOff         = 0u,
         .wrOff         = 0u,
-        .flags         = 2u,
-    },
-#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
-    .nrf =
-    {
-        .name  = "nRF5log",
-        .buffer = uc_jprint$Nrfbuf,
-        .sizeOfBuffer  = sizeof(uc_jprint$Nrfbuf),
-        .rdOff         = 0u,
-        .wrOff         = 0u,
-        .flags         = 2u,
+        .flags         = 0u,
     }
-#endif
 };
 
 void uc_jprint$initCB()
@@ -73,7 +49,7 @@ void uc_jprint$initCB()
 
 #define INIT_CB() do { if ( uc_jprint$cb.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
 
-void uc_jprint$print(int channel, const char *text, bool complete)
+void ucPutS(const char *text, bool complete)
 {
     static bool inactive = false;
 
@@ -82,11 +58,7 @@ void uc_jprint$print(int channel, const char *text, bool complete)
 
     INIT_CB();
 
-    bf =
-#if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
-        channel == 1 ? &uc_jprint$cb.nrf :
-#endif
-        &uc_jprint$cb.bf;
+    bf = &uc_jprint$cb.bf;
 
     wrOff = bf->wrOff;
 
@@ -115,11 +87,6 @@ void uc_jprint$print(int channel, const char *text, bool complete)
           bf->buffer[(wrOff++)%bf->sizeOfBuffer] = *text;
         bf->wrOff = wrOff%bf->sizeOfBuffer;
     }
-}
-
-void ucPutS(const char *text, bool complete)
-{
-    uc_jprint$print(0,text,complete);
 }
 
 void ucSetup_Print(void)
