@@ -34,7 +34,7 @@ SEGGER_RTT_CB uc_jprint$cb =
     {
         .name          = "ucPrint",
         .buffer        = uc_jprint$Buffer,
-        .sizeOfBuffer  = sizeof(uc_jprint$Buffer),
+        .sizeOfBuffer  = sizeof(uc_jprint$Buffer)-1,
         .rdOff         = 0u,
         .wrOff         = 0u,
         .flags         = 0u,
@@ -65,7 +65,7 @@ void ucPutS(const char *text, bool complete)
     while ( *text )
     {
         uint32_t rdOff = bf->rdOff;
-        uint32_t bfSpace = rdOff > wrOff ? rdOff - wrOff - 1u : bf->sizeOfBuffer - (wrOff - rdOff - 1u);
+        uint32_t bfSpace = rdOff > wrOff ? (rdOff - wrOff - 1u) : (bf->sizeOfBuffer - (wrOff - rdOff - 1u));
 
         if ( bfSpace == 0 )
         {
