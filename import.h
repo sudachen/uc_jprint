@@ -6,8 +6,8 @@
 
 /*
 
-  void ucSetup_Print(void);
-  void ucPutS(const char *text, bool complete);
+  void setup_print(void);
+  void putStr(const char *text, bool complete);
     API defined in uccm/uccm.h
 
   it's an backend implementation module only

@@ -49,7 +49,7 @@ void uc_jprint$initCB()
 
 #define INIT_CB() do { if ( uc_jprint$cb.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
 
-void ucPutS(const char *text, bool complete)
+void putStr(const char *text, bool complete)
 {
     static bool inactive = false;
 
@@ -89,7 +89,7 @@ void ucPutS(const char *text, bool complete)
     }
 }
 
-void ucSetup_Print(void)
+void setup_print(void)
 {
     INIT_CB();
 #if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
