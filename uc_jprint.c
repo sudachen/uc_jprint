@@ -1,10 +1,15 @@
 
 
 #include <~sudachen/uc_jprint/import.h>
+
+#ifdef __nRF5x_UC__
+
 #include <sdk_config.h>
 #if defined(NRF_LOG_ENABLED) && (NRF_LOG_ENABLED > 0)
 #include <nrf_log.h>
 #include <nrf_log_ctrl.h>
+#endif
+
 #endif
 
 typedef struct {

@@ -14,13 +14,13 @@
 
 */
 
-#ifdef __nRF5x_UC__
-
-#include <nrf_log.h>
-
 #pragma uccm let(UC_PRINT_BUFFER_SIZE)?=256
 #pragma uccm file(uccm_dynamic_defs.h) ~= \
 #define UC_PRINT_BUFFER_SIZE {$UC_PRINT_BUFFER_SIZE}\n
+
+#ifdef __nRF5x_UC__
+
+#include <nrf_log.h>
 
 #ifdef _DEBUG
 #pragma uccm let(NRF_LOG_LEVEL)?=2
