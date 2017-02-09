@@ -29,7 +29,7 @@ typedef struct {
   SEGGER_RTT_BUFFER bf;
 } SEGGER_RTT_CB;
 
-char uc_jprint$Buffer[UC_PRINT_BUFFER_SIZE];
+char uc_jprint$Buffer[JPRINT_BUFFER_SIZE];
 
 SEGGER_RTT_CB uc_jprint$cb =
 {
@@ -37,7 +37,7 @@ SEGGER_RTT_CB uc_jprint$cb =
     .maxnum = { 1, 0 },
     .bf =
     {
-        .name          = "ucPrint",
+        .name          = "uc_jprint",
         .buffer        = uc_jprint$Buffer,
         .sizeOfBuffer  = sizeof(uc_jprint$Buffer)-1,
         .rdOff         = 0u,

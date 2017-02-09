@@ -14,9 +14,9 @@
 
 */
 
-#pragma uccm let(UC_PRINT_BUFFER_SIZE)?=256
+#pragma uccm let(JPRINT_BUFFER_SIZE)?=256
 #pragma uccm file(uccm_dynamic_defs.h) ~= \
-#define UC_PRINT_BUFFER_SIZE {$UC_PRINT_BUFFER_SIZE}\n
+#define JPRINT_BUFFER_SIZE {$JPRINT_BUFFER_SIZE}\n
 
 #ifdef __nRF5x_UC__
 
