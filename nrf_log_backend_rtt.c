@@ -34,13 +34,13 @@ void uccm$printChar(char c);
 void uccm$printStr(const char *s);
 void uccm$flushPrint();
 void uccm$printComplete(bool complete);
-bool uccm$criticalEnter();
-void uccm$criticalExit(bool nested);
+bool uccm$irqCriticalEnter();
+void uccm$irqCriticalExit(bool nested);
 
 static void microPrintf(const char *fstr, size_t argno, uint32_t *args)
 {
     uint8_t *fmt = (uint8_t*)fstr;
-    bool nested = uccm$criticalEnter();
+    bool nested = uccm$irqCriticalEnter();
     uccm$printComplete(false);
 
     for ( int j = 0 ; *fmt ; )
@@ -120,7 +120,7 @@ static void microPrintf(const char *fstr, size_t argno, uint32_t *args)
     }
 
     uccm$flushPrint();
-    uccm$criticalExit(nested);
+    uccm$irqCriticalExit(nested);
 }
 
 static const char m_default_color[] = "\x1B[0m";
@@ -181,8 +181,7 @@ static uint32_t nrf_log_backend_rtt_hexdump_handler(
     uint32_t byte_cnt      = offset;
     uint32_t length        = buf0_length + buf1_length;
 
-    bool nested = uccm$criticalEnter();
-
+    bool nested = uccm$irqCriticalEnter();
     uccm$printStr(p_str);
 
     do
@@ -234,7 +233,7 @@ static uint32_t nrf_log_backend_rtt_hexdump_handler(
     while (byte_cnt < length);
 
     uccm$flushPrint();
-    uccm$criticalExit(nested);
+    uccm$irqCriticalExit(nested);
 
     return byte_cnt;
 }
