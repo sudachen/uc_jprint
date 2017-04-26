@@ -123,7 +123,7 @@ static void microPrintf(const char *fstr, size_t argno, uint32_t *args)
     uccm$irqCriticalExit(nested);
 }
 
-static const char m_default_color[] = "\x1B[0m";
+static const char DefaultColor[] = "\x1B[0m";
 
 ret_code_t nrf_log_backend_init(bool blocking)
 {
@@ -140,7 +140,7 @@ static bool nrf_log_backend_rtt_std_handler(
 {
     microPrintf(p_str,nargs,p_args);
     if (NRF_LOG_USES_COLORS)
-        uccm$printStr(m_default_color);
+        uccm$printStr(DefaultColor);
     return true;
 }
 
@@ -227,7 +227,7 @@ static uint32_t nrf_log_backend_rtt_hexdump_handler(
 
         uccm$printStr(str);
         if (NRF_LOG_USES_COLORS)
-            uccm$printStr(m_default_color);
+            uccm$printStr(DefaultColor);
 
     }
     while (byte_cnt < length);

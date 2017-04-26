@@ -31,7 +31,7 @@ typedef struct {
 
 char uc_jprint$Buffer[JPRINT_BUFFER_SIZE];
 
-SEGGER_RTT_CB uc_jprint$cb =
+SEGGER_RTT_CB uc_jprint$CB =
 {
     .acID = { 249, 239, 237, 237, 239, 248, 138, 248, 254, 254, 0},
     .maxnum = { 1, 0 },
@@ -48,22 +48,22 @@ SEGGER_RTT_CB uc_jprint$cb =
 
 void uc_jprint$initCB()
 {
-    if ( uc_jprint$cb.acID[0] != 'S' )
-        for ( char *p = uc_jprint$cb.acID; *p; ++p ) *p ^= 0xaa;
+    if ( uc_jprint$CB.acID[0] != 'S' )
+        for ( char *p = uc_jprint$CB.acID; *p; ++p ) *p ^= 0xaa;
 }
 
-#define INIT_CB() do { if ( uc_jprint$cb.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
+#define INIT_CB() do { if ( uc_jprint$CB.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
 
 void putStr(const char *text, bool complete)
 {
-    static bool inactive = false;
+    static bool Inactive = false;
 
     SEGGER_RTT_BUFFER *bf;
     uint32_t wrOff;
 
     INIT_CB();
 
-    bf = &uc_jprint$cb.bf;
+    bf = &uc_jprint$CB.bf;
 
     wrOff = bf->wrOff;
 
@@ -76,8 +76,8 @@ void putStr(const char *text, bool complete)
         {
             if ( !complete )
             {
-                if ( inactive ) return;
-                inactive = true;
+                if ( Inactive ) return;
+                Inactive = true;
             }
             for ( int count = 1000; count; --count ) {
                 __NOP();
@@ -86,7 +86,7 @@ void putStr(const char *text, bool complete)
             continue;
         }
 
-        inactive = false;
+        Inactive = false;
 
         for (; *text && bfSpace; --bfSpace, ++text )
           bf->buffer[(wrOff++)%bf->sizeOfBuffer] = *text;
