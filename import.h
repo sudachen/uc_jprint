@@ -7,7 +7,7 @@
 /*
 
   void setup_print(void);
-  void putStr(const char *text, bool complete);
+  void _put_string(const char *text, bool complete);
     API defined in uccm/uccm.h
 
   it's an backend implementation module only

@@ -54,7 +54,7 @@ void uc_jprint$initCB()
 
 #define INIT_CB() do { if ( uc_jprint$CB.acID[0] != 'S' ) uc_jprint$initCB(); } while(0)
 
-void putStr(const char *text, bool complete)
+void _put_string(const char *text, bool complete)
 {
     static bool Inactive = false;
 
